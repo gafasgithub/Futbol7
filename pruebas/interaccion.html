@@ -39,6 +39,8 @@ const marco = document.getElementById('web');
     const guardado = JSON.parse(localStorage.getItem('futbol7.v1'));
     comprobar(guardado.convocatoria.equipos.A[1].id === Number(sel.options[1].value) && guardado.seleccion.includes(Number(sel.options[1].value)), 'se guarda el cambio y la selección lo sigue');
     w.confirm = () => true;
+    const whatsapp = w.textoWhatsApp();
+    comprobar(!/media|\d,\d/.test(whatsapp) && whatsapp.includes('Amarillo') && whatsapp.includes('Negro'), 'el texto de WhatsApp no lleva medias');
     d.querySelector('[data-accion="otra"]').click();
     comprobar(d.querySelector('#equipos .sub').textContent.includes('opción 2'), '"Otra opción" pasa a la 2');
     d.querySelector('[data-pestana="condicionantes"]').click();
@@ -70,6 +72,30 @@ const marco = document.getElementById('web');
     comprobar(d.querySelector('#tarjeta-fichero.pendiente'), 'borrar una regla del fichero vuelve a dejarlo pendiente');
     d.querySelector('[data-accion="descartar"]').click();
     comprobar(d.querySelectorAll('.cond').length === 1 && d.querySelector('.estado-fichero.al-dia'), '"Descartar" vuelve a lo del fichero');
+
+    // "Siempre en el equipo Amarillo": se oculta el jugador 2 y se guarda con su lado.
+    const f3 = d.getElementById('nuevo-cond');
+    f3.tipo.value = 'equipo-A';
+    f3.tipo.dispatchEvent(new Event('change', { bubbles: true }));
+    comprobar(f3.b.hidden, 'con "siempre en el equipo" se oculta el jugador 2');
+    const enCampo = w.eval('estado.convocatoria.equipos.B[0].id');
+    f3.a.value = String(enCampo);
+    f3.querySelector('[type=submit]').click();
+    const fija = w.eval("estado.condicionantes.find(c => c.tipo === 'equipo')");
+    comprobar(fija && fija.a === enCampo && fija.lado === 'A', 'se guarda "siempre en Amarillo"');
+    comprobar(d.querySelector('.cond.tipo-equipo .etiqueta.incumple'), 'avisa de que no se cumple (está en Negro)');
+    const releido = {};
+    new Function('window', w.contenidoFichero())(releido);
+    comprobar(releido.CONDICIONANTES.condicionantes.some(c => c.tipo === 'equipo' && c.lado === 'A' && c.a === enCampo), 'el fichero guarda "siempre en el equipo"');
+    d.querySelector('[data-accion="aplicar"]').click();
+    comprobar(w.eval('estado.convocatoria.equipos.A').some(h => h.id === enCampo), 'al regenerar pasa al Amarillo');
+
+    // Recargar los datos de fut7-puntuaciones.
+    d.querySelector('[data-pestana="jugadores"]').click();
+    d.getElementById('recargar').click();
+    for (let i = 0; i < 80 && !/recargados|No se pudo/.test(d.getElementById('aviso').textContent); i++) await espera(100);
+    comprobar(/Datos recargados/.test(d.getElementById('aviso').textContent), `recargar datos (${d.getElementById('aviso').textContent})`);
+    comprobar(d.querySelectorAll('.ficha').length > 16 && JSON.parse(localStorage.getItem('futbol7.jugadores')).jugadores.length > 16, 'tras recargar se ven y se guardan los jugadores');
   } catch (e) { comprobar(false, 'error: ' + e.message); }
   lineas.unshift(fallos ? `${fallos} FALLOS` : 'TODO OK');
   document.getElementById('salida').textContent = lineas.join('\n');

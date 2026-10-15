@@ -6,20 +6,23 @@ equipos equilibrados de 8 (1 portero, 2 defensas, 4 medios y 1 delantero).
 ## Qué tiene
 
 - **Jugadores**: todos los futbolistas con su resistencia, velocidad, técnica y media, y sus dos
-  posiciones. Se seleccionan 16 y se pulsa **Crear convocatoria**.
+  posiciones. Se seleccionan 16 y se pulsa **Crear convocatoria**. **Recargar datos** vuelve a leer
+  jugadores, puntuaciones y posiciones de fut7-puntuaciones y cuenta qué ha cambiado.
 - **Equipos**: los dos equipos sobre el campo, con la media de cada uno y avisos si alguien juega
   fuera de sus posiciones o no se cumple un condicionante. Tocando un jugador y luego otro se
   intercambian (de posición o de equipo); también se puede sustituir a un convocado por otro jugador.
-  **Otra opción** enseña el siguiente mejor reparto y **Copiar para WhatsApp** copia las alineaciones.
-- **Condicionantes**: "X no puede ir con Y" y "X debe ir, si es posible, con Y", y cuánto pesa cada
-  criterio del reparto.
+  **Otra opción** enseña el siguiente mejor reparto y **Copiar para WhatsApp** copia las alineaciones
+  (sin medias).
+- **Condicionantes**: "X no puede ir con Y", "X debe ir, si es posible, con Y" y "X siempre en el
+  equipo Amarillo / Negro", y cuánto pesa cada criterio del reparto.
 
 ## De dónde salen los jugadores
 
 De [fut7-puntuaciones](https://cimorales.github.io/fut7-puntuaciones/), donde puntúan Agus, Tora,
 Lino, Reta y Neft. Cada atributo es la media de los cinco jueces y la media del jugador es la de
-sus tres atributos. La web lee los datos en vivo (solo lectura); si la fuente no responde usa
-`js/jugadores_respaldo.js`, que se refresca con:
+sus tres atributos. La web lee los datos en vivo (solo lectura) al abrirse y con **Recargar datos**,
+y guarda cada lectura en el navegador. Si la fuente no responde usa esa copia o, si es más antigua,
+`js/jugadores_respaldo.js`, que se renueva al publicar la web y también con:
 
 ```
 py actualizar_jugadores.py

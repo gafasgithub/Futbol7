@@ -1,6 +1,7 @@
 // Carga de jugadores desde fut7-puntuaciones (https://cimorales.github.io/fut7-puntuaciones/).
 // Esa web guarda sus datos en Supabase; aquí se leen con la misma consulta pública que usa
-// ella, solo lectura. Si no responde, se usa la copia de js/jugadores_respaldo.js.
+// ella, solo lectura. Cada lectura buena se guarda en el navegador; si la fuente no responde, se usa
+// esa copia o, si es más antigua, la de js/jugadores_respaldo.js (se renueva al publicar la web).
 
 const FUENTE = {
   url: 'https://vwnpmdstzqjdybxvxhvs.supabase.co/rest/v1/jugadores?select=datos&id=eq.1',
@@ -31,20 +32,29 @@ function normalizarJugador(bruto) {
   };
 }
 
+const CLAVE_COPIA_JUGADORES = 'futbol7.jugadores';
+
+// Devuelve { jugadores, vivo, fecha }: fecha (ISO) es cuándo se leyeron de la fuente.
 async function cargarJugadores() {
   try {
     const control = new AbortController();
     const espera = setTimeout(() => control.abort(), 8000);
-    const respuesta = await fetch(FUENTE.url, { headers: { apikey: FUENTE.clave }, signal: control.signal });
+    const respuesta = await fetch(FUENTE.url, { headers: { apikey: FUENTE.clave }, signal: control.signal, cache: 'no-store' });
     clearTimeout(espera);
     if (!respuesta.ok) throw new Error(`HTTP ${respuesta.status}`);
     const filas = await respuesta.json();
     const datos = filas?.[0]?.datos;
     if (!Array.isArray(datos) || !datos.length) throw new Error('respuesta vacía');
-    return { jugadores: datos.map(normalizarJugador), vivo: true };
+    const fecha = new Date().toISOString();
+    try { localStorage.setItem(CLAVE_COPIA_JUGADORES, JSON.stringify({ fecha, jugadores: datos })); } catch (e) { /* sin almacenamiento */ }
+    return { jugadores: datos.map(normalizarJugador), vivo: true, fecha };
   } catch (error) {
-    console.warn('No se pudo leer fut7-puntuaciones; se usa la copia de respaldo.', error);
-    const respaldo = window.JUGADORES_RESPALDO;
-    return { jugadores: respaldo.jugadores.map(normalizarJugador), vivo: false, fecha: respaldo.fecha };
+    console.warn('No se pudo leer fut7-puntuaciones; se usa la última copia.', error);
+    let copia = window.JUGADORES_RESPALDO;
+    try {
+      const guardada = JSON.parse(localStorage.getItem(CLAVE_COPIA_JUGADORES) || 'null');
+      if (guardada?.jugadores?.length && guardada.fecha > copia.fecha) copia = guardada;
+    } catch (e) { /* sin almacenamiento */ }
+    return { jugadores: copia.jugadores.map(normalizarJugador), vivo: false, fecha: copia.fecha };
   }
 }

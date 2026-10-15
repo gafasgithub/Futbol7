@@ -8,7 +8,11 @@ Web estática (HTML + CSS + JS sin compilación ni dependencias) para hacer conv
 - `js/equipos.js`: generador puro (sin DOM). Prueba los 6.435 repartos y alinea cada equipo con
   programación dinámica. Pesos y costes en `PESOS_DEFECTO` y `COSTE`. Formación en `FORMACION`.
 - `js/datos.js`: lee los jugadores de fut7-puntuaciones (consulta REST pública a su Supabase, solo
-  lectura; nunca escribir ahí) y los normaliza. Si falla, usa `js/jugadores_respaldo.js`.
+  lectura; nunca escribir ahí) y los normaliza. Cada lectura buena se guarda en `localStorage`
+  (`futbol7.jugadores`); si falla, usa esa copia o `js/jugadores_respaldo.js`, la más reciente.
+- Condicionantes: `separar` y `juntar` (parejas `a`/`b`) y `equipo` (`a` siempre en `lado` 'A' Amarillo
+  o 'B' Negro). `separar` y `equipo` son casi obligatorios (coste 1000). Con reglas `equipo` el
+  generador prueba cada reparto en las dos orientaciones.
 - `datos/condicionantes.js`: condicionantes y criterios compartidos (`window.CONDICIONANTES`). La web
   no puede escribirlo: los cambios hechos en la web quedan en `localStorage` (`cambiosLocales`) hasta
   que se descarga el fichero y se sube al repo. Al cargar, si coinciden con el fichero, dejan de estar pendientes.

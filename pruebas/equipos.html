@@ -55,6 +55,22 @@ const i0 = roto[lado0].findIndex(h => h.id === convocados[0].id);
 const tmp = roto[lado0][i0].id; roto[lado0][i0] = { ...roto[lado0][i0], id: roto[otro][0].id }; roto[otro][0] = { ...roto[otro][0], id: tmp };
 comprobar(analizarEquipos(roto, porId, conds).avisos.some(a => a.tipo === 'juntar'), 'aviso al separar a mano a quienes deben ir juntos');
 
+// "Siempre en el equipo": el mejor siempre en Amarillo (A) y el segundo siempre en Negro (B).
+const fijos = [{ tipo: 'equipo', a: m1.id, lado: 'A' }, { tipo: 'equipo', a: m2.id, lado: 'B' }];
+for (const [i, o] of generarEquipos(convocados, fijos, PESOS_DEFECTO).slice(0, 5).entries()) {
+  const l = ladoDe(o);
+  comprobar(l.get(m1.id) === 'A' && l.get(m2.id) === 'B', `"siempre en el equipo" respetado en la opción ${i + 1}`);
+}
+// Al revés (el mejor en B) también tiene que salir: el generador gira los equipos si hace falta.
+const alReves = ladoDe(generarEquipos(convocados, [{ tipo: 'equipo', a: m1.id, lado: 'B' }], PESOS_DEFECTO)[0]);
+comprobar(alReves.get(m1.id) === 'B', '"siempre en Negro" respetado');
+// Dos fijos en Amarillo que además "no pueden ir juntos": es imposible y no debe romperse.
+const imposible = generarEquipos(convocados, [
+  { tipo: 'equipo', a: m1.id, lado: 'A' }, { tipo: 'equipo', a: m2.id, lado: 'A' }, { tipo: 'separar', a: m1.id, b: m2.id },
+], PESOS_DEFECTO)[0];
+comprobar(imposible && analizarEquipos(imposible, porId, [{ tipo: 'equipo', a: m1.id, lado: 'A' }, { tipo: 'equipo', a: m2.id, lado: 'A' }, { tipo: 'separar', a: m1.id, b: m2.id }]).avisos.filter(a => a.tipo !== 'posicion').length === 1,
+  'con reglas imposibles incumple solo una y avisa');
+
 // Con solo la media en juego, el reparto elegido no puede tener más diferencia que el de los pesos por defecto.
 const soloMedia = generarEquipos(convocados, [], { media: 10, posiciones: 0, condicionantes: 0, atributos: 0 })[0];
 comprobar(analizarEquipos(soloMedia, porId).difMedia <= an.difMedia + 1e-9, 'con solo la media, la diferencia es la mínima');

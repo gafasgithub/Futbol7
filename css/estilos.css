@@ -99,6 +99,7 @@ code { font-family: var(--txt); font-size: 1em; background: var(--superficie-2);
 }
 .hero .sub { color: #c9c3ff; font-size: 22px; }
 .hero .sub a { color: var(--oro); }
+.gracias { margin: 8px 0 0; font: 8px/1.6 var(--px); color: #8f87d9; letter-spacing: 0.05em; }
 
 /* El futbolista corre "en el sitio" y el césped se desplaza por debajo. */
 .escena { position: relative; z-index: 1; margin-bottom: -18px; margin-right: 24px; }
@@ -336,6 +337,10 @@ input[type="search"], select {
 .cond-texto { flex: 1 1 240px; font-size: 22px; }
 .cond-texto b { font-weight: normal; }
 .cond-tipo { color: var(--suave); }
+.cuadro { display: inline-block; width: 14px; height: 14px; border: 2px solid #1b1838; margin-right: 6px; vertical-align: -1px; }
+.cuadro.lado-A { background: var(--equipo-A); }
+.cuadro.lado-B { background: #1b1838; border-color: var(--tinta); }
+.cond.tipo-equipo { border-left-color: var(--equipo-A); }
 .etiqueta { font: 8px var(--px); padding: 4px 6px 3px; border: 2px solid #1b1838; color: #1b1838; }
 .etiqueta.cumple { background: #49e07a; }
 .etiqueta.incumple { background: #ff5c6c; }

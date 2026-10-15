@@ -25,6 +25,7 @@ const COSTE = {
   fuera: 3,            // jugador en una posición que no es ninguna de las suyas
   juntar: 6,           // "debe ir con" incumplido
   separar: 1000,       // "no puede ir con" incumplido: solo ocurre si no hay otra salida
+  fijo: 1000,          // "siempre en el equipo X" incumplido: igual que el anterior
 };
 
 function costePosicion(jugador, posicion) {
@@ -79,9 +80,12 @@ function alinear(equipo, costes, conAlineacion) {
 
 const media = (lista, campo) => lista.reduce((s, j) => s + j[campo], 0) / lista.length;
 
-// Condicionantes que afectan a esta convocatoria (los dos jugadores convocados).
+// Condicionantes que afectan a esta convocatoria (los jugadores implicados están convocados).
+// Tipos: 'separar' y 'juntar' (parejas a/b) y 'equipo' (jugador a siempre en el lado 'A' o 'B').
 function condicionantesAplicables(condicionantes, ids) {
-  return condicionantes.filter(c => ids.has(c.a) && ids.has(c.b) && c.a !== c.b);
+  return condicionantes.filter(c => c.tipo === 'equipo'
+    ? ids.has(c.a) && (c.lado === 'A' || c.lado === 'B')
+    : ids.has(c.a) && ids.has(c.b) && c.a !== c.b);
 }
 
 // Desglose del coste de un reparto. equipoDe: Map id -> 'A' | 'B'.
@@ -114,10 +118,14 @@ function generarEquipos(jugadores, condicionantes = [], pesos = PESOS_DEFECTO, n
   const fPos = (pesos.posiciones ?? PESOS_DEFECTO.posiciones) / 5;
   const costes = jugadores.map(j => POSICIONES.map(p => costePosicion(j, p) * fPos));
   const conds = condicionantesAplicables(condicionantes, new Set(jugadores.map(j => j.id)));
+  const indiceDe = new Map(jugadores.map((j, i) => [j.id, i]));
+  const fijos = conds.filter(c => c.tipo === 'equipo').map(c => ({ i: indiceDe.get(c.a), lado: c.lado }));
 
   const mejores = [];
   const equipoDe = new Map();
-  // El jugador 0 siempre va en A: así cada reparto se cuenta una sola vez.
+  // El jugador 0 siempre va en el primer grupo: así cada reparto se cuenta una sola vez. Qué grupo es
+  // el Amarillo (A) y cuál el Negro (B) solo importa con los "siempre en el equipo X": se elige la
+  // orientación que incumple menos.
   const recorrer = (desde, elegidos) => {
     if (elegidos.length === POR_EQUIPO) { evaluar(elegidos); return; }
     for (let i = desde; i <= n - (POR_EQUIPO - elegidos.length); i++) {
@@ -135,14 +143,16 @@ function generarEquipos(jugadores, condicionantes = [], pesos = PESOS_DEFECTO, n
     for (const j of a) equipoDe.set(j.id, 'A');
     for (const j of b) equipoDe.set(j.id, 'B');
     const reparto = costeReparto(a, b, equipoDe, conds, pesos);
-    let coste = reparto.coste;
+    const fallanTalCual = fijos.filter(f => (enA[f.i] ? 'A' : 'B') !== f.lado).length;
+    const girado = fallanTalCual > fijos.length - fallanTalCual;
+    let coste = reparto.coste + Math.min(fallanTalCual, fijos.length - fallanTalCual) * COSTE.fijo;
     // Poda: si ya es peor que la peor de las guardadas, no hace falta alinear.
     if (mejores.length === nOpciones && coste >= mejores[nOpciones - 1].coste) return;
     coste += alinear(a, ia.map(i => costes[i])).coste;
     if (mejores.length === nOpciones && coste >= mejores[nOpciones - 1].coste) return;
     coste += alinear(b, ib.map(i => costes[i])).coste;
     if (mejores.length === nOpciones && coste >= mejores[nOpciones - 1].coste) return;
-    mejores.push({ coste, ia, ib });
+    mejores.push({ coste, ia: girado ? ib : ia, ib: girado ? ia : ib });
     mejores.sort((x, y) => x.coste - y.coste);
     if (mejores.length > nOpciones) mejores.pop();
   };
@@ -176,6 +186,10 @@ function analizarEquipos(equipos, porId, condicionantes = []) {
   }
   const conds = condicionantesAplicables(condicionantes, new Set(equipoDe.keys()));
   for (const c of conds) {
+    if (c.tipo === 'equipo') {
+      if (equipoDe.get(c.a) !== c.lado) avisos.push({ tipo: 'equipo', a: porId.get(c.a), lado: c.lado });
+      continue;
+    }
     const mismo = equipoDe.get(c.a) === equipoDe.get(c.b);
     if ((c.tipo === 'separar' && mismo) || (c.tipo === 'juntar' && !mismo)) {
       avisos.push({ tipo: c.tipo, a: porId.get(c.a), b: porId.get(c.b) });

@@ -13,6 +13,7 @@ const ids = convocados.map(j => j.id);
 const condicionantes = [
   { id: 1, tipo: 'separar', a: convocados[0].id, b: convocados[1].id },
   { id: 2, tipo: 'juntar', a: convocados[2].id, b: convocados[3].id },
+  { id: 3, tipo: 'equipo', a: convocados[4].id, lado: 'A' },
 ];
 const opciones = generarEquipos(convocados, condicionantes, PESOS_DEFECTO).map(({ A, B }) => ({ A, B }));
 const param = new URLSearchParams(location.search);

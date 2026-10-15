@@ -16,7 +16,7 @@ let estado = {
   seleccion: [],
   fecha: '',
   convocatoria: null,   // { fecha, ids, equipos: { A, B }, opciones, indice, retocada }
-  condicionantes: [],   // { id, tipo: 'separar' | 'juntar', a, b }
+  condicionantes: [],   // { id, tipo: 'separar' | 'juntar', a, b } o { id, tipo: 'equipo', a, lado: 'A' | 'B' }
   pesos: { ...PESOS_DEFECTO },
   cambiosLocales: false, // condicionantes o criterios cambiados aquí y aún no subidos a datos/condicionantes.js
   nombres: { ...NOMBRES_DEFECTO },
@@ -40,14 +40,58 @@ function recuperar() {
     const guardado = JSON.parse(localStorage.getItem(CLAVE_GUARDADO) || 'null');
     if (guardado) estado = { ...estado, ...guardado, pesos: { ...PESOS_DEFECTO, ...guardado.pesos } };
   } catch (e) { /* datos corruptos o sin almacenamiento: se empieza de cero */ }
-  // Quita lo que ya no exista en la fuente de jugadores.
-  estado.seleccion = estado.seleccion.filter(id => porId.has(id));
-  estado.condicionantes = estado.condicionantes.filter(c => porId.has(c.a) && porId.has(c.b));
-  const conv = estado.convocatoria;
-  if (conv && !LADOS.every(l => conv.equipos?.[l]?.every(h => porId.has(h.id)))) estado.convocatoria = null;
   if (estado.nombres.A === 'Blancos' && estado.nombres.B === 'Negros') estado.nombres = { ...NOMBRES_DEFECTO };
+  limpiarEstado();
+}
+
+// Quita lo que ya no exista en la fuente de jugadores. Devuelve true si hubo que borrar la convocatoria.
+function limpiarEstado() {
+  estado.seleccion = estado.seleccion.filter(id => porId.has(id));
+  estado.condicionantes = estado.condicionantes.filter(c => porId.has(c.a) && (c.tipo === 'equipo' || porId.has(c.b)));
+  const conv = estado.convocatoria;
+  const rota = conv && !LADOS.every(l => conv.equipos?.[l]?.every(h => porId.has(h.id)));
+  if (rota) estado.convocatoria = null;
   sincronizarConFichero();
   guardar();
+  return Boolean(rota);
+}
+
+function ponerJugadores({ jugadores: lista, vivo, fecha }) {
+  jugadores = lista.filter(j => j.nombre);
+  porId = new Map(jugadores.map(j => [j.id, j]));
+  const conHora = fecha.length > 10;
+  const cuando = new Date(conHora ? fecha : fecha + 'T12:00:00');
+  const dia = cuando.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
+  const hora = conHora ? ' ' + cuando.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
+  const enlace = `<a href="${FUENTE.web}" target="_blank" rel="noopener">fut7-puntuaciones</a>`;
+  $('#fuente').innerHTML = vivo
+    ? `${jugadores.length} jugadores de ${enlace} · leídos ${dia}${hora}`
+    : `${jugadores.length} jugadores de ${enlace} (copia del ${dia}${hora}: la fuente no responde)`;
+}
+
+// Botón "Recargar datos": vuelve a leer fut7-puntuaciones y cuenta qué ha cambiado.
+async function recargarJugadores(boton) {
+  boton.disabled = true;
+  boton.textContent = 'Recargando…';
+  const antes = porId;
+  const leido = await cargarJugadores();
+  boton.disabled = false;
+  boton.textContent = '⟳ Recargar datos';
+  if (!leido.vivo) { avisar('No se pudo conectar con fut7-puntuaciones. Se siguen usando los datos que había.'); return; }
+  ponerJugadores(leido);
+  const huellaJugador = j => JSON.stringify([j.nombre, j.pos, j.r, j.v, j.t]);
+  const nuevos = jugadores.filter(j => !antes.has(j.id)).length;
+  const quitados = [...antes.keys()].filter(id => !porId.has(id)).length;
+  const cambiados = jugadores.filter(j => antes.has(j.id) && huellaJugador(antes.get(j.id)) !== huellaJugador(j)).length;
+  const convocatoriaBorrada = limpiarEstado();
+  pintar();
+  const partes = [
+    nuevos && `${nuevos} nuevo${nuevos > 1 ? 's' : ''}`,
+    quitados && `${quitados} quitado${quitados > 1 ? 's' : ''}`,
+    cambiados && `${cambiados} con cambios`,
+  ].filter(Boolean);
+  avisar((partes.length ? `Datos recargados: ${partes.join(', ')}.` : 'Datos recargados: no había cambios.')
+    + (convocatoriaBorrada ? ' La convocatoria tenía jugadores que ya no existen y se ha quitado.' : ''));
 }
 
 let temporizadorAviso;
@@ -111,11 +155,13 @@ function pintarJugadores() {
           <option value="media">Por media</option>
           <option value="nombre">Por nombre</option>
         </select>
+        <button class="boton" id="recargar" title="Volver a leer jugadores, puntuaciones y posiciones de fut7-puntuaciones">⟳ Recargar datos</button>
       </div>
       <div class="rejilla" id="rejilla"></div>
       <div class="barra" id="barra"></div>`;
     $('#buscar').addEventListener('input', e => { ui.texto = e.target.value; pintarRejilla(); });
     $('#orden').addEventListener('change', e => { ui.orden = e.target.value; pintarRejilla(); });
+    $('#recargar').addEventListener('click', e => recargarJugadores(e.currentTarget));
     panel.querySelector('.filtros').addEventListener('click', e => {
       const b = e.target.closest('[data-filtro]');
       if (!b) return;
@@ -260,6 +306,7 @@ function pintarEquipos() {
   const estadoOpcion = conv.retocada ? 'retocada a mano' : `opción ${conv.indice + 1} de ${conv.opciones.length}`;
   const avisos = an.avisos.map(a => {
     if (a.tipo === 'posicion') return `<li class="aviso-pos"><b>${escapar(a.jugador.nombre)}</b> juega de ${a.pos.toLowerCase()} (lo suyo: ${a.jugador.pos.map(p => p.toLowerCase()).filter((p, i, l) => l.indexOf(p) === i).join(' / ')})</li>`;
+    if (a.tipo === 'equipo') return `<li class="aviso-cond"><b>${escapar(a.a.nombre)}</b> debe ir siempre en ${escapar(estado.nombres[a.lado])} y está en ${escapar(estado.nombres[a.lado === 'A' ? 'B' : 'A'])}</li>`;
     if (a.tipo === 'separar') return `<li class="aviso-cond"><b>${escapar(a.a.nombre)}</b> y <b>${escapar(a.b.nombre)}</b> no pueden ir juntos y están en el mismo equipo</li>`;
     return `<li class="aviso-cond"><b>${escapar(a.a.nombre)}</b> y <b>${escapar(a.b.nombre)}</b> deberían ir juntos y están separados</li>`;
   }).join('');
@@ -403,11 +450,10 @@ function accionEquipos(accion) {
 
 function textoWhatsApp() {
   const conv = estado.convocatoria;
-  const an = analizarEquipos(conv.equipos, porId);
   const emoji = { A: '🟡', B: '⚫' };
   const bloques = LADOS.map(l => {
     const lineas = POSICIONES.map(p => `${ABREV[p]}: ${conv.equipos[l].filter(h => h.pos === p).map(h => porId.get(h.id).nombre).join(', ')}`);
-    return `${emoji[l]} *${estado.nombres[l]}* (media ${num(an[l].media, 2)})\n${lineas.join('\n')}`;
+    return `${emoji[l]} *${estado.nombres[l]}*\n${lineas.join('\n')}`;
   });
   return `⚽ *Fútbol 7 · ${textoFecha(conv.fecha)}*\n\n${bloques.join('\n\n')}`;
 }
@@ -431,12 +477,22 @@ async function copiarTexto(texto) {
 const TIPOS = {
   separar: { texto: 'no puede ir con', simbolo: '✕' },
   juntar: { texto: 'debe ir, si es posible, con', simbolo: '＋' },
+  equipo: { texto: 'siempre en el equipo', simbolo: '' },
 };
+
+function textoCondicionante(c) {
+  const t = TIPOS[c.tipo];
+  const fin = c.tipo === 'equipo'
+    ? `<span class="cuadro lado-${c.lado}"></span><b>${escapar(estado.nombres[c.lado])}</b>`
+    : `<b>${escapar(porId.get(c.b).nombre)}</b>`;
+  const simbolo = t.simbolo ? `${t.simbolo} ` : '';
+  return `<b>${escapar(porId.get(c.a).nombre)}</b> <span class="cond-tipo">${simbolo}${t.texto}</span> ${fin}`;
+}
 
 const CRITERIOS = [
   { clave: 'media', titulo: 'Igualar la nota media', ayuda: 'Que los dos equipos tengan la media lo más parecida posible.' },
   { clave: 'posiciones', titulo: 'Respetar las posiciones favoritas', ayuda: 'Que cada uno juegue en su primera posición o, si no, en la segunda.' },
-  { clave: 'condicionantes', titulo: 'Cumplir los "debe ir con"', ayuda: 'Los "no puede ir con" se cumplen siempre que haya forma.' },
+  { clave: 'condicionantes', titulo: 'Cumplir los "debe ir con"', ayuda: 'Los "no puede ir con" y "siempre en el equipo" se cumplen siempre que haya forma.' },
   { clave: 'atributos', titulo: 'Igualar resistencia, velocidad y técnica', ayuda: 'Además de la media, que cada atributo quede parecido.' },
 ];
 
@@ -449,7 +505,14 @@ function pintarCondicionantes() {
 
   const lista = estado.condicionantes.map(c => {
     let etiqueta = '';
-    if (ladoDe.has(c.a) && ladoDe.has(c.b)) {
+    if (c.tipo === 'equipo') {
+      if (ladoDe.has(c.a)) {
+        const cumple = ladoDe.get(c.a) === c.lado;
+        etiqueta = `<span class="etiqueta ${cumple ? 'cumple' : 'incumple'}">${cumple ? 'Se cumple' : 'No se cumple'}</span>`;
+      } else if (conv) {
+        etiqueta = '<span class="etiqueta neutra">No juega</span>';
+      }
+    } else if (ladoDe.has(c.a) && ladoDe.has(c.b)) {
       const mismo = ladoDe.get(c.a) === ladoDe.get(c.b);
       const cumple = c.tipo === 'separar' ? !mismo : mismo;
       etiqueta = `<span class="etiqueta ${cumple ? 'cumple' : 'incumple'}">${cumple ? 'Se cumple' : 'No se cumple'}</span>`;
@@ -458,7 +521,7 @@ function pintarCondicionantes() {
     }
     return `
       <li class="cond tipo-${c.tipo}">
-        <span class="cond-texto"><b>${escapar(porId.get(c.a).nombre)}</b> <span class="cond-tipo">${TIPOS[c.tipo].simbolo} ${TIPOS[c.tipo].texto}</span> <b>${escapar(porId.get(c.b).nombre)}</b></span>
+        <span class="cond-texto">${textoCondicionante(c)}</span>
         ${etiqueta}
         <button class="borrar" data-borrar="${c.id}" aria-label="Borrar condicionante">Borrar</button>
       </li>`;
@@ -467,12 +530,13 @@ function pintarCondicionantes() {
   panel.innerHTML = `
     <div class="tarjeta">
       <h2>Condicionantes</h2>
-      <p class="sub">Se tienen en cuenta al generar los equipos cuando juegan los dos jugadores.</p>
+      <p class="sub">Se tienen en cuenta al generar los equipos cuando juegan los jugadores afectados.</p>
       <form class="nuevo-cond" id="nuevo-cond">
         <select name="a" required aria-label="Jugador 1"><option value="">Jugador 1</option>${opciones}</select>
         <select name="tipo" aria-label="Tipo">
           <option value="separar">${TIPOS.separar.texto}</option>
           <option value="juntar">${TIPOS.juntar.texto}</option>
+          ${LADOS.map(l => `<option value="equipo-${l}">${TIPOS.equipo.texto} ${escapar(estado.nombres[l])}</option>`).join('')}
         </select>
         <select name="b" required aria-label="Jugador 2"><option value="">Jugador 2</option>${opciones}</select>
         <button class="boton principal" type="submit">Añadir</button>
@@ -538,7 +602,8 @@ function leerFichero() {
   const condicionantes = [];
   for (const [i, c] of (fichero.condicionantes || []).entries()) {
     const a = resolver(c.a, c.nombreA), b = resolver(c.b, c.nombreB);
-    if (TIPOS[c.tipo] && a && b && a !== b) condicionantes.push({ id: i + 1, tipo: c.tipo, a, b });
+    if (c.tipo === 'equipo' && a && LADOS.includes(c.lado)) condicionantes.push({ id: i + 1, tipo: c.tipo, a, lado: c.lado });
+    else if (TIPOS[c.tipo] && c.tipo !== 'equipo' && a && b && a !== b) condicionantes.push({ id: i + 1, tipo: c.tipo, a, b });
     else console.warn('Condicionante del fichero que no se entiende o con jugadores que no existen:', c);
   }
   return { condicionantes, pesos: { ...PESOS_DEFECTO, ...fichero.criterios } };
@@ -546,7 +611,9 @@ function leerFichero() {
 
 // Para comparar lo del navegador con lo del fichero sin fijarse en el orden ni en los id.
 function huella({ condicionantes, pesos }) {
-  const reglas = condicionantes.map(c => `${c.tipo}:${Math.min(c.a, c.b)}-${Math.max(c.a, c.b)}`).sort();
+  const reglas = condicionantes.map(c => c.tipo === 'equipo'
+    ? `equipo:${c.a}-${c.lado}`
+    : `${c.tipo}:${Math.min(c.a, c.b)}-${Math.max(c.a, c.b)}`).sort();
   return JSON.stringify([reglas, CRITERIOS.map(c => pesos[c.clave])]);
 }
 
@@ -566,13 +633,15 @@ function marcarCambios() {
 }
 
 function contenidoFichero() {
-  const reglas = estado.condicionantes.map(c =>
-    `    { "tipo": "${c.tipo}", "a": ${c.a}, "b": ${c.b}, "nombreA": ${JSON.stringify(porId.get(c.a).nombre)}, "nombreB": ${JSON.stringify(porId.get(c.b).nombre)} }`);
+  const reglas = estado.condicionantes.map(c => c.tipo === 'equipo'
+    ? `    { "tipo": "equipo", "a": ${c.a}, "lado": "${c.lado}", "nombreA": ${JSON.stringify(porId.get(c.a).nombre)} }`
+    : `    { "tipo": "${c.tipo}", "a": ${c.a}, "b": ${c.b}, "nombreA": ${JSON.stringify(porId.get(c.a).nombre)}, "nombreB": ${JSON.stringify(porId.get(c.b).nombre)} }`);
   const criterios = CRITERIOS.map(c => `"${c.clave}": ${estado.pesos[c.clave]}`).join(', ');
   return `// Condicionantes y criterios para generar los equipos de Fútbol 7.
 // Se descarga desde la pestaña Condicionantes de la web, pero también se puede editar a mano.
 //   tipo "separar": no pueden ir en el mismo equipo.
 //   tipo "juntar":  deben ir juntos si es posible.
+//   tipo "equipo":  el jugador a va siempre en el equipo "lado" ("A" = Amarillo, "B" = Negro).
 //   a y b son los id de los jugadores en fut7-puntuaciones; nombreA y nombreB son para leerlo
 //   mejor (si un id deja de existir, se busca al jugador por su nombre).
 //   criterios: cuánto pesa cada cosa al generar los equipos, de 0 a 10.
@@ -587,10 +656,19 @@ ${reglas.join(',\n')}
 
 function anadirCondicionante(form) {
   const a = Number(form.a.value), b = Number(form.b.value), tipo = form.tipo.value;
+  if (tipo.startsWith('equipo-')) {
+    if (!a) { avisar('Elige el jugador'); return; }
+    // Una sola regla de equipo por jugador.
+    estado.condicionantes = estado.condicionantes.filter(c => !(c.tipo === 'equipo' && c.a === a));
+    estado.condicionantes.push({ id: Date.now(), tipo: 'equipo', a, lado: tipo.slice(-1) });
+    marcarCambios();
+    pintarCondicionantes();
+    return;
+  }
   if (!a || !b) { avisar('Elige los dos jugadores'); return; }
   if (a === b) { avisar('Tienen que ser dos jugadores distintos'); return; }
   // Una sola regla por pareja: la nueva sustituye a la que hubiera.
-  const misma = c => (c.a === a && c.b === b) || (c.a === b && c.b === a);
+  const misma = c => c.tipo !== 'equipo' && ((c.a === a && c.b === b) || (c.a === b && c.b === a));
   estado.condicionantes = estado.condicionantes.filter(c => !misma(c));
   estado.condicionantes.push({ id: Date.now(), tipo, a, b });
   marcarCambios();
@@ -679,6 +757,11 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   if (e.target.id === 'sustituto' && e.target.value) sustituir(Number(e.target.value));
   if (e.target.dataset?.peso) $('#tarjeta-fichero').outerHTML = tarjetaFichero();
+  if (e.target.name === 'tipo' && e.target.form?.id === 'nuevo-cond') {
+    const b = e.target.form.b;
+    b.hidden = e.target.value.startsWith('equipo-');
+    b.required = !b.hidden;
+  }
   if (e.target.classList.contains('nombre-equipo')) {
     estado.nombres[e.target.dataset.lado] = e.target.value.trim() || NOMBRES_DEFECTO[e.target.dataset.lado];
     guardar();
@@ -689,12 +772,7 @@ document.addEventListener('change', e => {
 // ---------- arranque ----------
 
 (async function iniciar() {
-  const { jugadores: lista, vivo, fecha } = await cargarJugadores();
-  jugadores = lista.filter(j => j.nombre);
-  porId = new Map(jugadores.map(j => [j.id, j]));
-  $('#fuente').innerHTML = vivo
-    ? `${jugadores.length} jugadores de <a href="${FUENTE.web}" target="_blank" rel="noopener">fut7-puntuaciones</a>`
-    : `${jugadores.length} jugadores (copia del ${new Date(fecha + 'T12:00:00').toLocaleDateString('es-ES')}; la fuente no responde)`;
+  ponerJugadores(await cargarJugadores());
   recuperar();
   const pedida = location.hash.slice(1);
   if (['jugadores', 'equipos', 'condicionantes'].includes(pedida)) ui.pestana = pedida;
