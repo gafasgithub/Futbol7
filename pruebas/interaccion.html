@@ -1,0 +1,77 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pruebas de la interfaz</title>
+<!-- Abre la web en un iframe y simula clics. Con Edge headless hace falta --allow-file-access-from-files. -->
+<pre id="salida">ejecutando…</pre>
+<iframe id="web" style="width:1200px;height:900px"></iframe>
+<script>
+const lineas = []; let fallos = 0;
+const comprobar = (ok, texto) => { lineas.push((ok ? 'OK    ' : 'FALLO ') + texto); if (!ok) fallos++; };
+const espera = ms => new Promise(r => setTimeout(r, ms));
+const marco = document.getElementById('web');
+(async () => {
+  try {
+    localStorage.removeItem('futbol7.v1');
+    marco.src = '../index.html#jugadores';
+    await new Promise(r => marco.onload = r);
+    const w = marco.contentWindow, d = w.document;
+    for (let i = 0; i < 50 && !d.querySelector('.ficha'); i++) await espera(100);
+    const fichas = [...d.querySelectorAll('.ficha')];
+    comprobar(fichas.length > 16, `se pintan los jugadores (${fichas.length})`);
+    fichas.slice(0, 17).forEach(f => d.querySelector(`.ficha[data-id="${f.dataset.id}"]`).click());
+    comprobar(d.querySelectorAll('.ficha.elegida').length === 16, 'no deja pasar de 16');
+    const crear = d.getElementById('crear');
+    comprobar(!crear.disabled, 'botón "Crear convocatoria" habilitado con 16');
+    crear.click();
+    await espera(300);
+    comprobar(!d.getElementById('equipos').hidden && d.querySelectorAll('.hueco').length === 16, 'crea los equipos (16 huecos)');
+    const nombre = (l, i) => d.querySelector(`.hueco[data-lado="${l}"][data-i="${i}"] .hueco-nombre`).textContent;
+    const a0 = nombre('A', 0), b3 = nombre('B', 3);
+    d.querySelector('.hueco[data-lado="A"][data-i="0"]').click();
+    d.querySelector('.hueco[data-lado="B"][data-i="3"]').click();
+    comprobar(nombre('A', 0) === b3 && nombre('B', 3) === a0, `intercambio entre equipos (${a0} <-> ${b3})`);
+    comprobar(d.querySelector('#equipos .sub').textContent.includes('retocada'), 'marca la convocatoria como retocada');
+    d.querySelector('.hueco[data-lado="A"][data-i="1"]').click();
+    const sel = d.getElementById('sustituto');
+    sel.value = sel.options[1].value;
+    sel.dispatchEvent(new Event('change', { bubbles: true }));
+    comprobar(nombre('A', 1) === sel.options[1].textContent.split(' · ')[0], 'sustituir por un no convocado');
+    const guardado = JSON.parse(localStorage.getItem('futbol7.v1'));
+    comprobar(guardado.convocatoria.equipos.A[1].id === Number(sel.options[1].value) && guardado.seleccion.includes(Number(sel.options[1].value)), 'se guarda el cambio y la selección lo sigue');
+    w.confirm = () => true;
+    d.querySelector('[data-accion="otra"]').click();
+    comprobar(d.querySelector('#equipos .sub').textContent.includes('opción 2'), '"Otra opción" pasa a la 2');
+    d.querySelector('[data-pestana="condicionantes"]').click();
+    const f = d.getElementById('nuevo-cond');
+    f.a.value = f.a.options[1].value; f.b.value = f.b.options[2].value; f.tipo.value = 'juntar';
+    f.querySelector('[type=submit]').click();
+    comprobar(d.querySelectorAll('.cond').length === 1, 'añade un condicionante');
+    const f2 = d.getElementById('nuevo-cond');
+    f2.a.value = f2.a.options[2].value; f2.b.value = f2.b.options[1].value; f2.tipo.value = 'separar';
+    f2.querySelector('[type=submit]').click();
+    comprobar(d.querySelectorAll('.cond').length === 1 && d.querySelector('.cond.tipo-separar'), 'la misma pareja no se duplica (se sustituye)');
+    comprobar(d.querySelector('#tarjeta-fichero.pendiente'), 'avisa de cambios pendientes de subir al fichero');
+    // El fichero que se descarga se puede volver a leer y trae la regla.
+    const leido = {};
+    new Function('window', w.contenidoFichero())(leido);
+    const regla = leido.CONDICIONANTES.condicionantes[0];
+    comprobar(leido.CONDICIONANTES.condicionantes.length === 1 && regla.tipo === 'separar' && regla.nombreA, 'el fichero descargado es válido');
+    // Si el fichero publicado ya coincide con los cambios, deja de estar pendiente.
+    w.CONDICIONANTES = leido.CONDICIONANTES;
+    w.pintarCondicionantes();
+    w.sincronizarConFichero();
+    comprobar(!w.eval('estado.cambiosLocales'), 'al subir el fichero los cambios dejan de estar pendientes');
+    // Un fichero con un id que ya no existe encuentra al jugador por su nombre.
+    w.CONDICIONANTES = { condicionantes: [{ tipo: 'juntar', a: 99999, b: regla.b, nombreA: regla.nombreA }] };
+    comprobar(w.leerFichero().condicionantes[0]?.a === regla.a, 'busca por nombre si el id no existe');
+    w.CONDICIONANTES = leido.CONDICIONANTES;
+    w.pintarCondicionantes();
+    d.querySelector('[data-borrar]').click();
+    comprobar(d.querySelector('#tarjeta-fichero.pendiente'), 'borrar una regla del fichero vuelve a dejarlo pendiente');
+    d.querySelector('[data-accion="descartar"]').click();
+    comprobar(d.querySelectorAll('.cond').length === 1 && d.querySelector('.estado-fichero.al-dia'), '"Descartar" vuelve a lo del fichero');
+  } catch (e) { comprobar(false, 'error: ' + e.message); }
+  lineas.unshift(fallos ? `${fallos} FALLOS` : 'TODO OK');
+  document.getElementById('salida').textContent = lineas.join('\n');
+})();
+</script>

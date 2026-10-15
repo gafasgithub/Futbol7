@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Demo</title>
+<!-- Parámetros: ?p=equipos|jugadores|condicionantes y &tema=oscuro -->
+<!-- Deja en el navegador una convocatoria de ejemplo y abre la web. Solo para pruebas. -->
+<script src="../js/equipos.js"></script>
+<script src="../js/datos.js"></script>
+<script src="../js/jugadores_respaldo.js"></script>
+<script>
+const todos = JUGADORES_RESPALDO.jugadores.map(normalizarJugador);
+const convocados = todos.filter(j => !j.nombre.startsWith('Externo')).slice(0, 16);
+const ids = convocados.map(j => j.id);
+const condicionantes = [
+  { id: 1, tipo: 'separar', a: convocados[0].id, b: convocados[1].id },
+  { id: 2, tipo: 'juntar', a: convocados[2].id, b: convocados[3].id },
+];
+const opciones = generarEquipos(convocados, condicionantes, PESOS_DEFECTO).map(({ A, B }) => ({ A, B }));
+const param = new URLSearchParams(location.search);
+const pestana = param.get('p') || 'equipos';
+localStorage.setItem('futbol7.tema', param.get('tema') === 'oscuro' ? 'oscuro' : 'claro');
+localStorage.setItem('futbol7.v1', JSON.stringify({
+  seleccion: pestana === 'jugadores' ? ids.slice(0, 13) : ids, fecha: '',
+  convocatoria: pestana === 'jugadores' ? null : { fecha: '2026-10-19', ids, opciones, indice: 0, equipos: JSON.parse(JSON.stringify(opciones[0])), retocada: false },
+  condicionantes, cambiosLocales: true, nombres: { A: 'Amarillo', B: 'Negro' },
+}));
+location.replace('../index.html#' + pestana);
+</script>

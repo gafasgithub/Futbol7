@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fútbol 7 · Lunes y Miércoles</title>
+  <meta name="description" content="Convocatorias y equipos equilibrados para el fútbol 7 de los lunes y miércoles">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'><path fill='%231b1838' d='M5 1h6v1h2v1h1v2h1v6h-1v2h-1v1h-2v1H5v-1H3v-1H2v-2H1V5h1V3h1V2h2z'/><path fill='%23fff' d='M5 2h6v1h2v2h1v6h-1v2h-2v1H5v-1H3v-2H2V5h1V3h2z'/><path fill='%231b1838' d='M7 5h2v1h1v2H9v1H7V8H6V6h1z M3 6h1v2H3z M12 6h1v2h-1z M6 12h1v1H6z M9 12h1v1H9z M7 2h2v1H7z'/></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/estilos.css">
+  <script>
+    // Aplica el tema guardado antes de pintar, para que no parpadee en claro.
+    try { if (localStorage.getItem('futbol7.tema') === 'oscuro') document.documentElement.dataset.tema = 'oscuro'; } catch (e) {}
+  </script>
+</head>
+<body>
+  <header class="hero">
+    <div class="hero-contenido">
+      <div class="hero-texto">
+        <div class="marca">
+          <!-- balón pixelado -->
+          <svg class="pixel balon" viewBox="0 0 16 16" aria-hidden="true">
+            <path fill="#1b1838" d="M5 1h6v1h2v1h1v2h1v6h-1v2h-1v1h-2v1H5v-1H3v-1H2v-2H1V5h1V3h1V2h2z"/>
+            <path fill="#fff" d="M5 2h6v1h2v2h1v6h-1v2h-2v1H5v-1H3v-2H2V5h1V3h2z"/>
+            <path fill="#1b1838" d="M7 5h2v1h1v2H9v1H7V8H6V6h1z M3 6h1v2H3z M12 6h1v2h-1z M6 12h1v1H6z M9 12h1v1H9z M7 2h2v1H7z"/>
+          </svg>
+          LUNES Y MIERCOLES
+        </div>
+        <h1>FUTBOL 7</h1>
+        <p class="sub" id="fuente">cargando jugadores…</p>
+      </div>
+      <div class="escena" aria-hidden="true">
+        <img src="img/futbolista.gif" alt="" width="160" height="128">
+      </div>
+      <button id="tema" class="boton-tema" type="button" aria-label="Cambiar a modo oscuro" title="Cambiar a modo oscuro">
+        <svg class="pixel luna" viewBox="0 0 12 12" aria-hidden="true">
+          <path fill="#ffcc33" d="M4 1h4v1H6v1H5v1H4v4h1v1h1v1h2v1H4v-1H3V9H2V8H1V4h1V3h1V2h1z"/>
+          <path fill="#c98a00" d="M2 8h1v1h1v1h1v1H4v-1H3V9H2z"/>
+        </svg>
+        <svg class="pixel sol" viewBox="0 0 12 12" aria-hidden="true">
+          <path fill="#ffcc33" d="M5 0h2v2H5z M5 10h2v2H5z M0 5h2v2H0z M10 5h2v2h-2z M1 1h2v2H1z M9 1h2v2H9z M1 9h2v2H1z M9 9h2v2H9z M4 3h4v1h1v4H8v1H4V8H3V4h1z"/>
+        </svg>
+      </button>
+    </div>
+    <div class="cesped-hero"></div>
+  </header>
+
+  <nav class="pestanas" role="tablist">
+    <button role="tab" data-pestana="jugadores" aria-selected="true">JUGADORES</button>
+    <button role="tab" data-pestana="equipos" aria-selected="false">EQUIPOS</button>
+    <button role="tab" data-pestana="condicionantes" aria-selected="false">CONDICIONANTES</button>
+  </nav>
+
+  <main>
+    <section id="jugadores" class="panel" role="tabpanel"></section>
+    <section id="equipos" class="panel" role="tabpanel" hidden></section>
+    <section id="condicionantes" class="panel" role="tabpanel" hidden></section>
+  </main>
+
+  <div id="aviso" class="aviso" role="status" hidden></div>
+
+  <script src="js/equipos.js"></script>
+  <script src="js/datos.js"></script>
+  <script src="js/jugadores_respaldo.js"></script>
+  <script src="datos/condicionantes.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

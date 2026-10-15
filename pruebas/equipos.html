@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pruebas del generador</title>
+<pre id="salida">ejecutando…</pre>
+<script src="../js/equipos.js"></script>
+<script src="../js/datos.js"></script>
+<script src="../js/jugadores_respaldo.js"></script>
+<script>
+// Abre este archivo en el navegador (o con Edge headless --dump-dom) para ver el resultado.
+const lineas = [];
+let fallos = 0;
+const comprobar = (ok, texto) => { lineas.push((ok ? 'OK    ' : 'FALLO ') + texto); if (!ok) fallos++; };
+
+const todos = JUGADORES_RESPALDO.jugadores.map(normalizarJugador);
+const porId = new Map(todos.map(j => [j.id, j]));
+const convocados = todos.filter(j => !j.nombre.startsWith('Externo')).slice(0, 16);
+const ids = convocados.map(j => j.id);
+
+const t0 = performance.now();
+const opciones = generarEquipos(convocados, [], PESOS_DEFECTO);
+const ms = performance.now() - t0;
+const mejor = opciones[0];
+const usados = [...mejor.A, ...mejor.B].map(h => h.id);
+comprobar(new Set(usados).size === 16 && usados.every(id => ids.includes(id)), 'los 16 convocados juegan una sola vez');
+for (const lado of ['A', 'B']) {
+  const cuenta = p => mejor[lado].filter(h => h.pos === p).length;
+  comprobar(POSICIONES.every(p => cuenta(p) === FORMACION[p]), `equipo ${lado} con formación 1-2-4-1`);
+}
+const an = analizarEquipos(mejor, porId);
+comprobar(an.difMedia < 0.1, `diferencia de media pequeña (${an.difMedia.toFixed(3)})`);
+comprobar(opciones.every((o, i) => i === 0 || o.coste >= opciones[i - 1].coste), 'opciones ordenadas por coste');
+comprobar(ms < 3000, `tiempo razonable (${ms.toFixed(0)} ms)`);
+
+// Condicionantes: separar a los dos mejores y juntar a dos que salieron separados.
+const orden = [...convocados].sort((x, y) => y.media - x.media);
+const [m1, m2] = orden;
+const ladoDe = o => new Map([...o.A.map(h => [h.id, 'A']), ...o.B.map(h => [h.id, 'B'])]);
+const lm = ladoDe(mejor);
+const separados = convocados.filter(j => lm.get(j.id) !== lm.get(convocados[0].id));
+const conds = [
+  { tipo: 'separar', a: m1.id, b: m2.id },
+  { tipo: 'juntar', a: convocados[0].id, b: separados[0].id },
+];
+const conCond = generarEquipos(convocados, conds, PESOS_DEFECTO)[0];
+const lc = ladoDe(conCond);
+comprobar(lc.get(m1.id) !== lc.get(m2.id), `"no puede ir con" respetado (${m1.nombre} / ${m2.nombre})`);
+comprobar(lc.get(convocados[0].id) === lc.get(separados[0].id), `"debe ir con" respetado (${convocados[0].nombre} / ${separados[0].nombre})`);
+const anCond = analizarEquipos(conCond, porId, conds);
+comprobar(anCond.avisos.filter(a => a.tipo !== 'posicion').length === 0, 'analizarEquipos no avisa de condicionantes incumplidos');
+
+// Retoque a mano que separa a los que deben ir juntos: debe salir el aviso.
+const roto = { A: [...conCond.A], B: [...conCond.B] };
+const lado0 = lc.get(convocados[0].id), otro = lado0 === 'A' ? 'B' : 'A';
+const i0 = roto[lado0].findIndex(h => h.id === convocados[0].id);
+const tmp = roto[lado0][i0].id; roto[lado0][i0] = { ...roto[lado0][i0], id: roto[otro][0].id }; roto[otro][0] = { ...roto[otro][0], id: tmp };
+comprobar(analizarEquipos(roto, porId, conds).avisos.some(a => a.tipo === 'juntar'), 'aviso al separar a mano a quienes deben ir juntos');
+
+// Con solo la media en juego, el reparto elegido no puede tener más diferencia que el de los pesos por defecto.
+const soloMedia = generarEquipos(convocados, [], { media: 10, posiciones: 0, condicionantes: 0, atributos: 0 })[0];
+comprobar(analizarEquipos(soloMedia, porId).difMedia <= an.difMedia + 1e-9, 'con solo la media, la diferencia es la mínima');
+
+lineas.push('', `Mejor reparto (coste ${mejor.coste.toFixed(2)}):`);
+for (const lado of ['A', 'B']) {
+  lineas.push(`  ${lado} media ${an[lado].media.toFixed(2)}: ` + mejor[lado].map(h => `${h.pos.slice(0,3)} ${porId.get(h.id).nombre} (${porId.get(h.id).pos.join('/')})`).join(', '));
+}
+lineas.unshift(fallos ? `${fallos} FALLOS` : 'TODO OK');
+document.getElementById('salida').textContent = lineas.join('\n');
+</script>
