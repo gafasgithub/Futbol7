@@ -1,0 +1,23 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Imagen de ejemplo</title>
+<!-- Dibuja la imagen para WhatsApp con jugadores de ejemplo, para revisarla (p. ej. con una captura). -->
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>body { margin: 0; background: #333; } img { display: block; width: 540px; }</style>
+<base href="../">
+<img id="salida" alt="">
+<script src="js/equipos.js"></script>
+<script src="js/datos.js"></script>
+<script src="js/jugadores_respaldo.js"></script>
+<script src="js/imagen.js"></script>
+<script>
+const todos = JUGADORES_RESPALDO.jugadores.map(normalizarJugador);
+const nombres = todos.map(j => j.nombre);
+imagenConvocatoria({
+  titulo: 'FUTBOL 7', fecha: 'Miércoles, 21 de octubre', pie: 'gafasgithub.github.io/Futbol7',
+  equipos: [
+    { nombre: 'Amarillo', lado: 'A', jugadores: nombres.slice(0, 7).concat('Sergio Asensio (Luis)') },
+    { nombre: 'Negro', lado: 'B', jugadores: nombres.slice(8, 16) },
+  ],
+}).then(b => { document.getElementById('salida').src = URL.createObjectURL(b); });
+</script>

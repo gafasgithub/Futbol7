@@ -40,7 +40,16 @@ const marco = document.getElementById('web');
     comprobar(guardado.convocatoria.equipos.A[1].id === Number(sel.options[1].value) && guardado.seleccion.includes(Number(sel.options[1].value)), 'se guarda el cambio y la selección lo sigue');
     w.confirm = () => true;
     const whatsapp = w.textoWhatsApp();
-    comprobar(!/media|\d,\d/.test(whatsapp) && whatsapp.includes('Amarillo') && whatsapp.includes('Negro'), 'el texto de WhatsApp no lleva medias');
+    comprobar(!/media|\d,\d|POR|DEF|MED|DEL/.test(whatsapp) && whatsapp.includes('Amarillo') && whatsapp.includes('Negro'), 'el texto de WhatsApp no lleva medias ni posiciones');
+    comprobar(whatsapp.split('\n').length === 2 + 9 + 1 + 9, 'el texto de WhatsApp lleva un nombre por línea');
+    const png = await w.imagenConvocatoria({ titulo: 'FUTBOL 7', fecha: 'Lunes, 19 de octubre', pie: 'prueba',
+      equipos: [{ nombre: 'Amarillo', lado: 'A', jugadores: ['Uno', 'Dos'] }, { nombre: 'Negro', lado: 'B', jugadores: ['Tres'] }] });
+    comprobar(png && png.type === 'image/png' && png.size > 5000, `se genera la imagen (${png && Math.round(png.size / 1024)} KB)`);
+    d.querySelector('[data-accion="imagen"]').click();
+    for (let i = 0; i < 50 && !d.getElementById('modal-imagen'); i++) await espera(100);
+    comprobar(d.querySelector('#modal-imagen img'), 'el botón abre la imagen');
+    d.querySelector('[data-imagen="cerrar"]').click();
+    comprobar(!d.getElementById('modal-imagen'), 'la imagen se cierra');
     d.querySelector('[data-accion="otra"]').click();
     comprobar(d.querySelector('#equipos .sub').textContent.includes('opción 2'), '"Otra opción" pasa a la 2');
     d.querySelector('[data-pestana="condicionantes"]').click();
@@ -96,6 +105,14 @@ const marco = document.getElementById('web');
     for (let i = 0; i < 80 && !/recargados|No se pudo/.test(d.getElementById('aviso').textContent); i++) await espera(100);
     comprobar(/Datos recargados/.test(d.getElementById('aviso').textContent), `recargar datos (${d.getElementById('aviso').textContent})`);
     comprobar(d.querySelectorAll('.ficha').length > 16 && JSON.parse(localStorage.getItem('futbol7.jugadores')).jugadores.length > 16, 'tras recargar se ven y se guardan los jugadores');
+
+    // Eliminar convocatoria: sin equipos y sin nadie seleccionado.
+    d.querySelector('[data-pestana="equipos"]').click();
+    d.querySelector('[data-accion="eliminar"]').click();
+    comprobar(w.eval('estado.convocatoria') === null && w.eval('estado.seleccion.length') === 0, 'eliminar borra equipos y selección');
+    comprobar(d.querySelector('#equipos .vacio'), 'tras eliminar, Equipos queda vacía');
+    d.querySelector('[data-pestana="jugadores"]').click();
+    comprobar(d.querySelectorAll('.ficha.elegida').length === 0, 'tras eliminar, no queda nadie marcado en Jugadores');
   } catch (e) { comprobar(false, 'error: ' + e.message); }
   lineas.unshift(fallos ? `${fallos} FALLOS` : 'TODO OK');
   document.getElementById('salida').textContent = lineas.join('\n');

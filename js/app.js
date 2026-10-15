@@ -320,7 +320,9 @@ function pintarEquipos() {
       <div class="eq-acciones">
         <button class="boton secundario" data-accion="otra" ${conv.opciones.length > 1 ? '' : 'disabled'}>Otra opción</button>
         <button class="boton secundario" data-accion="regenerar">Volver a generar</button>
-        <button class="boton principal" data-accion="copiar">Copiar para WhatsApp</button>
+        <button class="boton principal" data-accion="imagen">Imagen para WhatsApp</button>
+        <button class="boton secundario" data-accion="copiar">Copiar texto</button>
+        <button class="boton peligro" data-accion="eliminar">Eliminar convocatoria</button>
       </div>
     </div>
 
@@ -445,17 +447,91 @@ function accionEquipos(accion) {
     avisar('Equipos generados de nuevo con los criterios actuales');
   }
   if (accion === 'copiar') copiarTexto(textoWhatsApp());
+  if (accion === 'imagen') abrirImagen();
+  if (accion === 'eliminar') {
+    if (!confirm('Se borrarán los equipos y la selección de jugadores. ¿Eliminar la convocatoria?')) return;
+    estado.convocatoria = null;
+    estado.seleccion = [];
+    ui.marcado = null;
+    guardar();
+    pintarEquipos();
+    avisar('Convocatoria eliminada');
+  }
   if (accion === 'desmarcar') { ui.marcado = null; pintarEquipos(); }
 }
 
 function textoWhatsApp() {
   const conv = estado.convocatoria;
   const emoji = { A: '🟡', B: '⚫' };
-  const bloques = LADOS.map(l => {
-    const lineas = POSICIONES.map(p => `${ABREV[p]}: ${conv.equipos[l].filter(h => h.pos === p).map(h => porId.get(h.id).nombre).join(', ')}`);
-    return `${emoji[l]} *${estado.nombres[l]}*\n${lineas.join('\n')}`;
-  });
+  const bloques = LADOS.map(l =>
+    `${emoji[l]} *${estado.nombres[l]}*\n${conv.equipos[l].map(h => porId.get(h.id).nombre).join('\n')}`);
   return `⚽ *Fútbol 7 · ${textoFecha(conv.fecha)}*\n\n${bloques.join('\n\n')}`;
+}
+
+// ---------- imagen para WhatsApp ----------
+
+let imagenActual = null;  // { blob, url, archivo }
+
+async function abrirImagen() {
+  const conv = estado.convocatoria;
+  const datos = {
+    titulo: 'FUTBOL 7',
+    fecha: textoFecha(conv.fecha),
+    equipos: LADOS.map(l => ({ nombre: estado.nombres[l], lado: l, jugadores: conv.equipos[l].map(h => porId.get(h.id).nombre) })),
+    pie: 'gafasgithub.github.io/Futbol7',
+  };
+  avisar('Preparando la imagen…');
+  let blob;
+  try {
+    blob = await imagenConvocatoria(datos);
+  } catch (e) {
+    console.error(e);
+    avisar('No se pudo crear la imagen en este navegador');
+    return;
+  }
+  if (imagenActual) URL.revokeObjectURL(imagenActual.url);
+  const archivo = new File([blob], `futbol7-${conv.fecha}.png`, { type: 'image/png' });
+  imagenActual = { blob, url: URL.createObjectURL(blob), archivo };
+  const compartir = navigator.canShare?.({ files: [archivo] });
+  const copiar = typeof ClipboardItem !== 'undefined' && navigator.clipboard?.write;
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.id = 'modal-imagen';
+  modal.innerHTML = `
+    <div class="modal-caja" role="dialog" aria-label="Imagen de la convocatoria">
+      <img src="${imagenActual.url}" alt="Equipos de la convocatoria">
+      <div class="fila-botones">
+        ${compartir ? '<button class="boton principal" data-imagen="compartir">Compartir</button>' : ''}
+        ${copiar ? `<button class="boton ${compartir ? 'secundario' : 'principal'}" data-imagen="copiar">Copiar imagen</button>` : ''}
+        <button class="boton secundario" data-imagen="descargar">Descargar</button>
+        <button class="boton secundario" data-imagen="cerrar">Cerrar</button>
+      </div>
+    </div>`;
+  $('#modal-imagen')?.remove();
+  document.body.appendChild(modal);
+  $('#aviso').hidden = true;
+}
+
+async function accionImagen(accion) {
+  const { blob, url, archivo } = imagenActual;
+  if (accion === 'cerrar') { $('#modal-imagen')?.remove(); return; }
+  if (accion === 'compartir') {
+    try { await navigator.share({ files: [archivo], title: 'Fútbol 7' }); } catch (e) { /* cancelado */ }
+  }
+  if (accion === 'copiar') {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      avisar('Imagen copiada. Pégala en WhatsApp.');
+    } catch (e) {
+      avisar('No se pudo copiar; usa Descargar');
+    }
+  }
+  if (accion === 'descargar') {
+    const enlace = document.createElement('a');
+    enlace.href = url;
+    enlace.download = archivo.name;
+    enlace.click();
+  }
 }
 
 async function copiarTexto(texto) {
@@ -721,6 +797,9 @@ pintarBotonTema();
 // ---------- eventos globales ----------
 
 document.addEventListener('click', e => {
+  const img = e.target.closest('[data-imagen]');
+  if (img) { accionImagen(img.dataset.imagen); return; }
+  if (e.target.id === 'modal-imagen') { e.target.remove(); return; }
   const pestana = e.target.closest('[data-pestana]');
   if (pestana) { cambiarPestana(pestana.dataset.pestana); return; }
   const ir = e.target.closest('[data-ir]');
@@ -739,6 +818,10 @@ document.addEventListener('click', e => {
     if (ui.pestana === 'equipos') accionEquipos(accion.dataset.accion);
     if (ui.pestana === 'condicionantes') accionCondicionantes(accion.dataset.accion);
   }
+});
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') $('#modal-imagen')?.remove();
 });
 
 document.addEventListener('submit', e => {

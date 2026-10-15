@@ -11,8 +11,10 @@ equipos equilibrados de 8 (1 portero, 2 defensas, 4 medios y 1 delantero).
 - **Equipos**: los dos equipos sobre el campo, con la media de cada uno y avisos si alguien juega
   fuera de sus posiciones o no se cumple un condicionante. Tocando un jugador y luego otro se
   intercambian (de posición o de equipo); también se puede sustituir a un convocado por otro jugador.
-  **Otra opción** enseña el siguiente mejor reparto y **Copiar para WhatsApp** copia las alineaciones
-  (sin medias).
+  **Otra opción** enseña el siguiente mejor reparto. **Imagen para WhatsApp** dibuja una imagen con
+  los jugadores de cada equipo (se comparte desde el móvil, o se copia o descarga), **Copiar texto**
+  copia la misma lista en texto (sin medias ni posiciones) y **Eliminar convocatoria** borra los
+  equipos y la selección de jugadores.
 - **Condicionantes**: "X no puede ir con Y", "X debe ir, si es posible, con Y" y "X siempre en el
   equipo Amarillo / Negro", y cuánto pesa cada criterio del reparto.
 
