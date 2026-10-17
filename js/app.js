@@ -74,7 +74,7 @@ async function recargarJugadores(boton) {
   const antes = porId;
   const leido = await descargarJugadores();
   boton.disabled = false;
-  boton.textContent = '⟳ Recargar datos';
+  boton.textContent = '⟳ Recar.datos';
   if (!leido) { avisar('No se pudo conectar con fut7-puntuaciones. Se siguen usando los datos que había.'); return; }
   ponerJugadores(leido);
   const huellaJugador = j => JSON.stringify([j.nombre, j.pos, j.r, j.v, j.t]);
@@ -150,11 +150,11 @@ function pintarJugadores() {
           ${POSICIONES.map(p => `<button data-filtro="${p}">${ABREV[p]}</button>`).join('')}
         </div>
         <select id="orden" aria-label="Ordenar">
-          <option value="media">Por media</option>
-          <option value="nombre">Por nombre</option>
+          <option value="media">Media</option>
+          <option value="nombre">Nombre</option>
         </select>
         <button class="boton" id="pegar-lista" title="Pegar el mensaje con los convocados y seleccionarlos">☰ Pegar lista</button>
-        <button class="boton" id="recargar" title="Volver a leer jugadores, puntuaciones y posiciones de fut7-puntuaciones">⟳ Recargar datos</button>
+        <button class="boton" id="recargar" title="Recargar datos: volver a leer jugadores, puntuaciones y posiciones de fut7-puntuaciones">⟳ Recar.datos</button>
       </div>
       <div class="rejilla" id="rejilla"></div>
       <div class="barra" id="barra"></div>`;

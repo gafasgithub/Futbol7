@@ -430,7 +430,11 @@ input[type="search"], select {
   .rejilla { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
   .ficha { padding: 8px 8px 10px; }
   .ficha-nombre { font-size: 20px; }
-  .herramientas input { flex-basis: 100%; }
+  .herramientas input, .herramientas .filtros { flex-basis: 100%; }
+  .herramientas .filtros button { flex: 1; }
+  .herramientas { gap: 8px; }
+  .herramientas select { flex: 0 0 auto; padding: 6px 2px; font-size: 18px; }
+  .herramientas .boton { flex: 1 1 0; min-width: 0; padding: 8px 2px; font-size: 18px; gap: 3px; }
   .barra-acciones { width: 100%; }
   .barra-acciones select { flex: 1; }
   .barra-acciones #crear { flex: 1 1 100%; }
