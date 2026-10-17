@@ -101,16 +101,14 @@ code { font-family: var(--txt); font-size: 1em; background: var(--superficie-2);
 .hero .sub a { color: var(--oro); }
 .gracias { margin: 8px 0 0; font: 8px/1.6 var(--px); color: #8f87d9; letter-spacing: 0.05em; }
 
-/* El futbolista corre "en el sitio" y el césped se desplaza por debajo. */
+/* El futbolista avanza con el balón hasta la portería y marca. */
 .escena { position: relative; z-index: 1; margin-bottom: -18px; margin-right: 24px; }
-.escena img { display: block; width: 160px; height: 128px; }
+.escena img { display: block; width: 320px; height: 128px; }
 
 .cesped-hero {
   height: 30px; border-top: 4px solid #1b1838;
   background: repeating-linear-gradient(90deg, #3f9d58 0 32px, #37904f 32px 64px);
-  animation: cesped 0.72s steps(8) infinite;
 }
-@keyframes cesped { to { background-position: -64px 0; } }
 
 .boton-tema {
   position: absolute; top: 16px; right: 16px;
@@ -124,7 +122,7 @@ code { font-family: var(--txt); font-size: 1em; background: var(--superficie-2);
 :root[data-tema="oscuro"] .boton-tema .luna { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero::before, .cesped-hero { animation: none; }
+  .hero::before { animation: none; }
 }
 
 /* ---------- pestañas ---------- */
@@ -379,6 +377,32 @@ input[type="search"], select {
 }
 .modal-caja .fila-botones { justify-content: center; }
 
+/* ---------- pegar lista de convocados ---------- */
+
+.lista-caja { max-width: 560px; }
+.lista-caja h2, .lista-caja p { margin: 0; }
+.lista-caja textarea {
+  font: 20px/1.2 var(--txt); background: var(--superficie-2); color: var(--tinta);
+  border: 3px solid var(--tinta); border-radius: 0; padding: 8px 10px; resize: vertical; min-height: 160px;
+}
+.lista-filas {
+  list-style: none; margin: 0; padding: 0 4px 0 0; overflow-y: auto; min-height: 0; flex: 1 1 auto;
+  display: grid; gap: 6px;
+}
+.lista-fila {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) 76px; gap: 8px; align-items: center;
+  padding: 4px 6px; border-left: 6px solid var(--bien); background: var(--superficie-2);
+}
+.lista-fila.dudoso { border-left-color: var(--regular); }
+.lista-fila.sin, .lista-fila.repetido { border-left-color: var(--mal); }
+.lista-escrito { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lista-fila select { width: 100%; padding: 2px 6px; }
+.lista-nota { font-size: 16px; color: var(--suave); }
+.lista-fila.dudoso .lista-nota { color: var(--regular); }
+.lista-fila.sin .lista-nota, .lista-fila.repetido .lista-nota { color: var(--mal); }
+.lista-resumen b { color: var(--acento); font-weight: normal; }
+.lista-resumen.mal { color: var(--mal); }
+
 /* ---------- aviso flotante ---------- */
 
 .aviso {
@@ -392,11 +416,13 @@ input[type="search"], select {
 
 @media (max-width: 640px) {
   main { padding-bottom: 170px; }
-  .hero-contenido { padding-top: 20px; gap: 8px; }
-  .hero-texto { padding-bottom: 22px; }
+  .hero-contenido { padding-top: 20px; gap: 0; grid-template-columns: minmax(0, 1fr); }
+  .hero-texto { padding-bottom: 0; }
   .marca { font-size: 8px; padding-right: 54px; }
-  .escena { margin-right: 0; margin-bottom: -14px; }
-  .escena img { width: 120px; height: 96px; }  /* múltiplo exacto de 40x32 para que los píxeles salgan iguales */
+  .escena { margin-right: 0; margin-bottom: -14px; justify-self: end; }
+  .escena img { width: 240px; height: 96px; }  /* múltiplo exacto de 80x32 para que los píxeles salgan iguales */
+  .lista-fila { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); }
+  .lista-nota { display: none; }
   .pestanas { gap: 8px; padding: 10px 8px; }
   .pestanas button { font-size: 8px; padding: 10px 8px; }
   .rejilla { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }

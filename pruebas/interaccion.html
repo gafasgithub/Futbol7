@@ -2,6 +2,7 @@
 <meta charset="utf-8">
 <title>Pruebas de la interfaz</title>
 <!-- Abre la web en un iframe y simula clics. Con Edge headless hace falta --allow-file-access-from-files. -->
+<script src="../js/jugadores_respaldo.js"></script>
 <pre id="salida">ejecutando…</pre>
 <iframe id="web" style="width:1200px;height:900px"></iframe>
 <script>
@@ -12,10 +13,13 @@ const marco = document.getElementById('web');
 (async () => {
   try {
     localStorage.removeItem('futbol7.v1');
+    // Copia guardada con una fecha antigua: al abrir se usa esa, sin consultar fut7-puntuaciones.
+    localStorage.setItem('futbol7.jugadores', JSON.stringify({ fecha: '2020-01-05T10:00:00.000Z', jugadores: JUGADORES_RESPALDO.jugadores }));
     marco.src = '../index.html#jugadores';
     await new Promise(r => marco.onload = r);
     const w = marco.contentWindow, d = w.document;
     for (let i = 0; i < 50 && !d.querySelector('.ficha'); i++) await espera(100);
+    comprobar(/5 ene/.test(d.getElementById('fuente').textContent), `al abrir usa los datos guardados (${d.getElementById('fuente').textContent})`);
     const fichas = [...d.querySelectorAll('.ficha')];
     comprobar(fichas.length > 16, `se pintan los jugadores (${fichas.length})`);
     fichas.slice(0, 17).forEach(f => d.querySelector(`.ficha[data-id="${f.dataset.id}"]`).click());
@@ -113,6 +117,33 @@ const marco = document.getElementById('web');
     comprobar(d.querySelector('#equipos .vacio'), 'tras eliminar, Equipos queda vacía');
     d.querySelector('[data-pestana="jugadores"]').click();
     comprobar(d.querySelectorAll('.ficha.elegida').length === 0, 'tras eliminar, no queda nadie marcado en Jugadores');
+
+    // Pegar la lista de convocados del WhatsApp.
+    d.getElementById('pegar-lista').click();
+    d.getElementById('lista-texto').value = [
+      'Convocatoria para LUNES 05/10 a las 21 h campo 2 en las pistas Perales Temporada 26-27', '',
+      '1. Reta', '    2. Charly ', '3. Luis', '4. Ángel ', '5. Sergio', '6. Pablo', '7. Javi ', '8. Antonio(baena)',
+      '9. piñe', '10. Jose', '11. Baena', '12. Nefbappe', '13. alex', '14. Omar', '15. Zlatan', '16. Tora', '',
+      'Reservas internos:', 'Reservas 2 días:, Javi ', 'Reservas externos:',
+    ].join('\n');
+    d.querySelector('[data-lista="interpretar"]').click();
+    const filasLista = w.eval('lista.filas');
+    const asignado = texto => w.eval('porId').get(filasLista.find(f => f.texto === texto)?.id)?.nombre;
+    comprobar(filasLista.length === 16 && d.querySelectorAll('.lista-fila').length === 16, `lee solo los 16 numerados (${filasLista.length})`);
+    const esperados = { 'Reta': 'Reta', 'Ángel': 'Ángel', 'Sergio': 'Sergio', 'Javi': 'Javi', 'Antonio(baena)': 'Antonio (Baena)',
+      'piñe': 'Piñe', 'Jose': 'Jose (Portero)', 'Baena': 'Baena', 'Nefbappe': 'Neft', 'alex': 'Alex', 'Luis': 'Luis' };
+    const malos = Object.entries(esperados).filter(([t, n]) => asignado(t) !== n).map(([t]) => `${t}=${asignado(t)}`);
+    comprobar(!malos.length, `asigna bien los nombres${malos.length ? ' (' + malos.join(', ') + ')' : ''}`);
+    comprobar(d.querySelector('.lista-fila.dudoso .lista-escrito')?.textContent === 'Nefbappe', 'marca para revisar los dudosos (Nefbappe)');
+    // Cambiar a mano una asignación con el desplegable.
+    const combo = d.querySelector('select[data-fila="11"]');
+    const robe = w.eval('jugadores').find(j => j.nombre === 'Robe (Neft)').id;
+    combo.value = String(robe);
+    combo.dispatchEvent(new Event('change', { bubbles: true }));
+    comprobar(asignado('Nefbappe') === 'Robe (Neft)' && !d.querySelector('select[data-fila="11"]').closest('.dudoso'), 'el desplegable cambia la asignación');
+    d.querySelector('[data-lista="aceptar"]').click();
+    comprobar(!d.getElementById('modal-lista') && w.eval('estado.seleccion.length') === 16 && w.eval('estado.seleccion').includes(robe), 'al aceptar se seleccionan los 16');
+    comprobar(d.querySelectorAll('.ficha.elegida').length === 16 && !d.getElementById('crear').disabled, 'se puede crear la convocatoria');
   } catch (e) { comprobar(false, 'error: ' + e.message); }
   lineas.unshift(fallos ? `${fallos} FALLOS` : 'TODO OK');
   document.getElementById('salida').textContent = lineas.join('\n');

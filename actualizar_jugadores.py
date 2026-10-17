@@ -1,7 +1,7 @@
 """Descarga los jugadores de fut7-puntuaciones y guarda una copia de respaldo para la web.
 
-La web lee los datos en vivo; esta copia (js/jugadores_respaldo.js) solo se usa si la
-fuente no responde. Uso: py actualizar_jugadores.py
+La web solo lee la fuente al pulsar "Recargar datos"; esta copia (js/jugadores_respaldo.js)
+es la que usa la primera vez que se abre en un navegador. Uso: py actualizar_jugadores.py
 """
 import json
 import urllib.request

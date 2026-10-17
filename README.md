@@ -6,7 +6,9 @@ equipos equilibrados de 8 (1 portero, 2 defensas, 4 medios y 1 delantero).
 ## Qué tiene
 
 - **Jugadores**: todos los futbolistas con su resistencia, velocidad, técnica y media, y sus dos
-  posiciones. Se seleccionan 16 y se pulsa **Crear convocatoria**. **Recargar datos** vuelve a leer
+  posiciones. Se seleccionan 16 y se pulsa **Crear convocatoria**. Con **Pegar lista** se pega el
+  mensaje de la convocatoria (los nombres numerados): la web propone a qué jugador corresponde cada
+  nombre, se corrige con el desplegable si hace falta y al aceptar quedan seleccionados. **Recargar datos** vuelve a leer
   jugadores, puntuaciones y posiciones de fut7-puntuaciones y cuenta qué ha cambiado.
 - **Equipos**: los dos equipos sobre el campo, con la media de cada uno y avisos si alguien juega
   fuera de sus posiciones o no se cumple un condicionante. Tocando un jugador y luego otro se
@@ -22,9 +24,10 @@ equipos equilibrados de 8 (1 portero, 2 defensas, 4 medios y 1 delantero).
 
 De [fut7-puntuaciones](https://cimorales.github.io/fut7-puntuaciones/), donde puntúan Agus, Tora,
 Lino, Reta y Neft. Cada atributo es la media de los cinco jueces y la media del jugador es la de
-sus tres atributos. La web lee los datos en vivo (solo lectura) al abrirse y con **Recargar datos**,
-y guarda cada lectura en el navegador. Si la fuente no responde usa esa copia o, si es más antigua,
-`js/jugadores_respaldo.js`, que se renueva al publicar la web y también con:
+sus tres atributos. La web solo los lee de allí (solo lectura) al pulsar **Recargar datos**, y guarda
+cada lectura en el navegador: al abrirla se usa siempre esa copia, así que los datos no cambian hasta
+que se recargan. La primera vez en un navegador parte de `js/jugadores_respaldo.js`, que se renueva
+al publicar la web y también con:
 
 ```
 py actualizar_jugadores.py
@@ -45,7 +48,7 @@ El peso de cada punto se ajusta en la pestaña Condicionantes. El cálculo está
 ## Aspecto
 
 Estilo pixel art, con modo claro y oscuro (botón de la cabecera). El futbolista animado de la
-cabecera (`img/futbolista.gif`) se genera con `py herramientas/generar_futbolista.py`.
+cabecera, que avanza con el balón y marca gol (`img/futbolista.gif`), se genera con `py herramientas/generar_futbolista.py`.
 
 ## Uso local
 

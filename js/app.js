@@ -56,7 +56,7 @@ function limpiarEstado() {
   return Boolean(rota);
 }
 
-function ponerJugadores({ jugadores: lista, vivo, fecha }) {
+function ponerJugadores({ jugadores: lista, fecha }) {
   jugadores = lista.filter(j => j.nombre);
   porId = new Map(jugadores.map(j => [j.id, j]));
   const conHora = fecha.length > 10;
@@ -64,9 +64,7 @@ function ponerJugadores({ jugadores: lista, vivo, fecha }) {
   const dia = cuando.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' });
   const hora = conHora ? ' ' + cuando.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' }) : '';
   const enlace = `<a href="${FUENTE.web}" target="_blank" rel="noopener">fut7-puntuaciones</a>`;
-  $('#fuente').innerHTML = vivo
-    ? `${jugadores.length} jugadores de ${enlace} · leídos ${dia}${hora}`
-    : `${jugadores.length} jugadores de ${enlace} (copia del ${dia}${hora}: la fuente no responde)`;
+  $('#fuente').innerHTML = `${jugadores.length} jugadores de ${enlace} · actualizados el ${dia}${hora}`;
 }
 
 // Botón "Recargar datos": vuelve a leer fut7-puntuaciones y cuenta qué ha cambiado.
@@ -74,10 +72,10 @@ async function recargarJugadores(boton) {
   boton.disabled = true;
   boton.textContent = 'Recargando…';
   const antes = porId;
-  const leido = await cargarJugadores();
+  const leido = await descargarJugadores();
   boton.disabled = false;
   boton.textContent = '⟳ Recargar datos';
-  if (!leido.vivo) { avisar('No se pudo conectar con fut7-puntuaciones. Se siguen usando los datos que había.'); return; }
+  if (!leido) { avisar('No se pudo conectar con fut7-puntuaciones. Se siguen usando los datos que había.'); return; }
   ponerJugadores(leido);
   const huellaJugador = j => JSON.stringify([j.nombre, j.pos, j.r, j.v, j.t]);
   const nuevos = jugadores.filter(j => !antes.has(j.id)).length;
@@ -155,6 +153,7 @@ function pintarJugadores() {
           <option value="media">Por media</option>
           <option value="nombre">Por nombre</option>
         </select>
+        <button class="boton" id="pegar-lista" title="Pegar el mensaje con los convocados y seleccionarlos">☰ Pegar lista</button>
         <button class="boton" id="recargar" title="Volver a leer jugadores, puntuaciones y posiciones de fut7-puntuaciones">⟳ Recargar datos</button>
       </div>
       <div class="rejilla" id="rejilla"></div>
@@ -162,6 +161,7 @@ function pintarJugadores() {
     $('#buscar').addEventListener('input', e => { ui.texto = e.target.value; pintarRejilla(); });
     $('#orden').addEventListener('change', e => { ui.orden = e.target.value; pintarRejilla(); });
     $('#recargar').addEventListener('click', e => recargarJugadores(e.currentTarget));
+    $('#pegar-lista').addEventListener('click', abrirLista);
     panel.querySelector('.filtros').addEventListener('click', e => {
       const b = e.target.closest('[data-filtro]');
       if (!b) return;
@@ -276,6 +276,97 @@ function generarConvocatoria(ids, fecha) {
 }
 
 const copiar = eq => ({ A: eq.A.map(h => ({ ...h })), B: eq.B.map(h => ({ ...h })) });
+
+// ---------- pegar lista de convocados ----------
+
+// { texto, filas: [{ texto, id, puntos }] | null }. Se conserva al cerrar para no perder lo pegado.
+const lista = { texto: '', filas: null };
+
+function abrirLista() {
+  $('#modal-lista')?.remove();
+  const modal = document.createElement('div');
+  modal.className = 'modal';
+  modal.id = 'modal-lista';
+  modal.innerHTML = '<div class="modal-caja lista-caja" role="dialog" aria-label="Pegar lista de convocados"></div>';
+  document.body.appendChild(modal);
+  pintarLista();
+  modal.querySelector('textarea')?.focus();
+}
+
+function pintarLista() {
+  const caja = $('#modal-lista .modal-caja');
+  if (!caja) return;
+  if (!lista.filas) {
+    caja.innerHTML = `
+      <h2>PEGAR LISTA</h2>
+      <p class="ayuda">Pega el mensaje con los convocados. Si los nombres van numerados ("1. Reta"), solo se leen esos y se ignoran el título y las reservas.</p>
+      <textarea id="lista-texto" rows="12" placeholder="1. Reta&#10;2. Charly&#10;3. Luis&#10;…">${escapar(lista.texto)}</textarea>
+      <div class="fila-botones">
+        <button class="boton principal" data-lista="interpretar">Interpretar</button>
+        <button class="boton secundario" data-lista="cerrar">Cancelar</button>
+      </div>`;
+    return;
+  }
+  const ids = lista.filas.map(f => f.id).filter(id => id !== null);
+  const repetidos = new Set(ids.filter((id, i) => ids.indexOf(id) !== i));
+  const elegidos = new Set(ids).size;
+  const sinAsignar = lista.filas.filter(f => f.id === null).length;
+  const opciones = [...jugadores].sort((x, y) => x.nombre.localeCompare(y.nombre, 'es'));
+  const filas = lista.filas.map((f, i) => {
+    const clase = f.id === null ? 'sin' : repetidos.has(f.id) ? 'repetido' : f.puntos && f.puntos < 90 ? 'dudoso' : '';
+    const nota = { sin: 'sin asignar', repetido: 'repetido', dudoso: 'revisar' }[clase] ?? '';
+    return `
+      <li class="lista-fila ${clase}">
+        <span class="lista-escrito" title="Texto pegado">${escapar(f.texto)}</span>
+        <select data-fila="${i}" aria-label="Jugador para ${escapar(f.texto)}">
+          <option value="">— Nadie —</option>
+          ${opciones.map(j => `<option value="${j.id}" ${j.id === f.id ? 'selected' : ''}>${escapar(j.nombre)}</option>`).join('')}
+        </select>
+        <span class="lista-nota">${nota}</span>
+      </li>`;
+  }).join('');
+  const demasiados = elegidos > CONVOCADOS;
+  const resumen = [
+    `<b>${elegidos}</b> jugadores elegidos de ${lista.filas.length} nombres`,
+    sinAsignar && `${sinAsignar} sin asignar`,
+    repetidos.size && 'hay jugadores repetidos',
+  ].filter(Boolean).join(' · ');
+  caja.innerHTML = `
+    <h2>PEGAR LISTA</h2>
+    <p class="ayuda">Comprueba a quién corresponde cada nombre y cámbialo en el desplegable si no es correcto. Al aceptar, estos jugadores sustituyen a la selección actual.</p>
+    <ol class="lista-filas">${filas}</ol>
+    <p class="lista-resumen${demasiados ? ' mal' : ''}">${resumen}${demasiados ? ` · máximo ${CONVOCADOS}: quita a alguien` : ''}</p>
+    <div class="fila-botones">
+      <button class="boton principal" data-lista="aceptar" ${elegidos && !demasiados ? '' : 'disabled'}>Aceptar</button>
+      <button class="boton secundario" data-lista="volver">Editar texto</button>
+      <button class="boton secundario" data-lista="cerrar">Cancelar</button>
+    </div>`;
+}
+
+function accionLista(accion) {
+  if (accion === 'cerrar') { $('#modal-lista')?.remove(); return; }
+  if (accion === 'interpretar') {
+    lista.texto = $('#lista-texto').value;
+    const filas = interpretarLista(lista.texto, jugadores);
+    if (!filas.length) { avisar('No se ha encontrado ningún nombre en el texto.'); return; }
+    lista.filas = filas;
+  }
+  if (accion === 'volver') lista.filas = null;
+  if (accion === 'aceptar') {
+    estado.seleccion = [...new Set(lista.filas.map(f => f.id).filter(id => id !== null))];
+    const fecha = fechaDeLista(lista.texto, proximasFechas());
+    if (fecha) estado.fecha = fecha;
+    guardar();
+    $('#modal-lista')?.remove();
+    lista.texto = '';
+    lista.filas = null;
+    pintarJugadores();
+    const faltan = CONVOCADOS - estado.seleccion.length;
+    avisar(`${estado.seleccion.length} jugadores seleccionados.` + (faltan ? ` Faltan ${faltan}.` : ' Ya puedes crear la convocatoria.'));
+    return;
+  }
+  pintarLista();
+}
 
 // ---------- pestaña Equipos ----------
 
@@ -800,6 +891,9 @@ document.addEventListener('click', e => {
   const img = e.target.closest('[data-imagen]');
   if (img) { accionImagen(img.dataset.imagen); return; }
   if (e.target.id === 'modal-imagen') { e.target.remove(); return; }
+  const enLista = e.target.closest('[data-lista]');
+  if (enLista) { accionLista(enLista.dataset.lista); return; }
+  if (e.target.id === 'modal-lista') { e.target.remove(); return; }
   const pestana = e.target.closest('[data-pestana]');
   if (pestana) { cambiarPestana(pestana.dataset.pestana); return; }
   const ir = e.target.closest('[data-ir]');
@@ -821,7 +915,7 @@ document.addEventListener('click', e => {
 });
 
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') $('#modal-imagen')?.remove();
+  if (e.key === 'Escape') { $('#modal-imagen')?.remove(); $('#modal-lista')?.remove(); }
 });
 
 document.addEventListener('submit', e => {
@@ -839,6 +933,13 @@ document.addEventListener('input', e => {
 
 document.addEventListener('change', e => {
   if (e.target.id === 'sustituto' && e.target.value) sustituir(Number(e.target.value));
+  if (e.target.dataset?.fila && lista.filas) {
+    // Elegido a mano: deja de estar "por revisar".
+    lista.filas[Number(e.target.dataset.fila)] = { ...lista.filas[e.target.dataset.fila], id: e.target.value ? Number(e.target.value) : null, puntos: 100 };
+    const desplazado = $('.lista-filas')?.scrollTop;
+    pintarLista();
+    if (desplazado) $('.lista-filas').scrollTop = desplazado;
+  }
   if (e.target.dataset?.peso) $('#tarjeta-fichero').outerHTML = tarjetaFichero();
   if (e.target.name === 'tipo' && e.target.form?.id === 'nuevo-cond') {
     const b = e.target.form.b;
@@ -854,8 +955,8 @@ document.addEventListener('change', e => {
 
 // ---------- arranque ----------
 
-(async function iniciar() {
-  ponerJugadores(await cargarJugadores());
+(function iniciar() {
+  ponerJugadores(leerJugadoresGuardados());
   recuperar();
   const pedida = location.hash.slice(1);
   if (['jugadores', 'equipos', 'condicionantes'].includes(pedida)) ui.pestana = pedida;
