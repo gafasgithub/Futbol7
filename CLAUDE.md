@@ -26,7 +26,7 @@ Web estática (HTML + CSS + JS sin compilación ni dependencias) para hacer conv
   pixelada no tiene tildes en mayúsculas: los textos en esa letra van sin tilde (FUTBOL, MIERCOLES).
 - `img/futbolista.gif` se genera con `py herramientas/generar_futbolista.py` (sin librerías: dibuja el
   sprite por "huesos" y escribe el GIF a mano). `--muestra` deja `img/futbolista_muestra.png` ampliada
-  para revisarlo (no se sube). Mostrar el GIF siempre a un múltiplo exacto de 80x32.
+  para revisarlo (no se sube). Mostrar el GIF siempre a un múltiplo exacto de 40x32.
 - Scripts clásicos (no módulos) para que funcione abriendo `index.html` con doble clic.
 
 ## Probar cambios

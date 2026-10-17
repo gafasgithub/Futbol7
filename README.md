@@ -48,7 +48,7 @@ El peso de cada punto se ajusta en la pestaña Condicionantes. El cálculo está
 ## Aspecto
 
 Estilo pixel art, con modo claro y oscuro (botón de la cabecera). El futbolista animado de la
-cabecera, que avanza con el balón y marca gol (`img/futbolista.gif`), se genera con `py herramientas/generar_futbolista.py`.
+cabecera (`img/futbolista.gif`) se genera con `py herramientas/generar_futbolista.py`.
 
 ## Uso local
 
