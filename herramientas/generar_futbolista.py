@@ -147,8 +147,10 @@ def fotograma(n):
 
     def angulos(f):
         muslo = 38 * math.sin(f)
-        # La rodilla se dobla más cuando la pierna vuelve hacia delante.
-        flexion = 15 + 55 * max(0.0, math.sin(f - math.pi / 2)) ** 1.2
+        # El muslo va hacia delante mientras cos(f) > 0. La rodilla se dobla al traer la pierna de
+        # atrás hacia delante (el talón sube) y va casi estirada mientras el pie empuja el suelo hacia
+        # atrás; al revés parece que corre hacia atrás.
+        flexion = 10 + 80 * max(0.0, math.cos(f + math.pi / 3)) ** 1.5
         return muslo, flexion
 
     capas = []
